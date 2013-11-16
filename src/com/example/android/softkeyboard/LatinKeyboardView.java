@@ -16,6 +16,7 @@
 
 package com.example.android.softkeyboard;
 
+import android.R;
 import android.content.Context;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.Keyboard.Key;
@@ -29,8 +30,22 @@ public class LatinKeyboardView extends KeyboardView {
 
     static final int KEYCODE_OPTIONS = -100;
 	private static final String DEBUG_TAG = "KBView:";
-	private static final double MIN_SWIPE_LEN = 30.0; //TODO change this!
+	private static final double MIN_SWIPE_LEN = 25.0; //TODO change this!
 	public enum Direction{N, NE, E, SE, S, SW, W, NW}
+	
+	private static final int xInterval = 78;
+	private static final int yInterval = 54;
+	//Mega array mapping y coord, x coord and gesture direction
+	//to actual keycodes. example: map[1][0][5] means y = 1, x = 0
+	//and direction = 5. (0,1) key is the ghi4 key. and direction 5 means
+	//south. (0 is tap, 1 is North, 3 is east, 5 south, 7 west...)
+	private static final int[][][] map = {
+		{{'!','?',0,0,0,0,0,'1',0}, {'a','b',0,'c',0,0,0,'2',0}, {'d','e',0,'f',0,0,0,'3',0}, {0,0,0,0,0,0,0,0,0}},
+		{{'g','h',0,'i',0,0,0,'4',0}, {'j','k',0,'l',0,0,0,'5',0}, {'m','n',0,'o',0,0,0,'6',0}, {'.',',',0,0,0,0,0,0,0}},
+		{{'p','q',0,'r',0,'s',0,'7',0}, {'t','u',0,'v',0,0,0,'8',0}, {'w','x',0,'y',0,'z',0,'9',0}, {-5,0,0,0,0,0,0,0,0}},
+		{{0,0,0,0,0,0,0,0,0}, {':',';',0,0,0,0,0,'0',0}, {' ',0,0,0,0,0,0,0,0}, {10,0,0,0,0,0,0,0,0}}
+		
+	};
 	
     public LatinKeyboardView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -79,7 +94,7 @@ public class LatinKeyboardView extends KeyboardView {
 
     	// equivalently, if I augment the angle += pi/8
     	// then i can use intervals [0, pi/4), [pi/4, pi/2) and so on
-    	double augmentedAngle = (angle + Math.PI / 8.0 ) % (2*Math.PI); 
+    	double augmentedAngle = (angle + intervalLength/2.0 ) % (2*Math.PI); 
     	int interval = (int)(augmentedAngle / intervalLength);
     	Direction direction = Direction.S;
     	switch (interval){  			
@@ -155,41 +170,66 @@ public class LatinKeyboardView extends KeyboardView {
     	
     	switch(action) {
          case (MotionEvent.ACTION_DOWN) :
-             Log.d(DEBUG_TAG,"Action was DOWN");
+             //Log.d(DEBUG_TAG,"Action was DOWN");
          	 savePoint(me);
              return true;
          case (MotionEvent.ACTION_MOVE) :
-             Log.d(DEBUG_TAG,"Action was MOVE");
-             return true;
+             //Log.d(DEBUG_TAG,"Action was MOVE");
+        	 Log.d(DEBUG_TAG, "x,y = " + me.getX() + " " + me.getY());
+             return false;
          case (MotionEvent.ACTION_UP) :
-             Log.d(DEBUG_TAG,"Action was UP");
+            // Log.d(DEBUG_TAG,"Action was UP");
          	 double d = distance(me);
+         
+         	// Need to find out whether it was a tap or swipe
+            // and if it was a swipe, what direction it goes
+            // integer direction will be used to index into map[][][] later.
+         	 int direction = 0;
          	 if (d < MIN_SWIPE_LEN){
-         		 Log.d(DEBUG_TAG, "Too short, parse as a tap");         		 
+         		 Log.d(DEBUG_TAG, "Too short, parse as a tap");
+         		
          	 } else {
          		Log.d(DEBUG_TAG, "Parse as a swipe");
          		 Direction dir = getDir(me);
          		 switch(dir){
          		 case N:
+         			 direction = 1;
          			 break;
          		 case NE:
+         			 direction = 2;
          			 break;
          		 case E:
+         			 direction = 3;
          			 break;
          		 case SE:
+         			 direction = 4;
          			 break;
          		 case S:
+         			 direction = 5;
          			 break;
          		 case SW:
+         			 direction = 6;
          			 break;
          		 case W:
+         			 direction = 7;
          			 break;
          		 case NW:
+         			 direction = 8;
          			 break;     
          		 default:
+         			 direction = 0;
          			 break;
          		 }
          	 }
+         	 
+         	 //Now we have gotten direction index, we still need
+         	 //the x and y indices. do it by interval method
+         	 int xIndex = (int)(prevX / xInterval);
+         	 int yIndex = (int)(prevY / yInterval);
+         	 Log.d(DEBUG_TAG,"Going to map[][][]"+yIndex+ " "+xIndex+" "+direction);
+         	 int keycode = map[yIndex][xIndex][direction];
+         	 //call the controller class and pass the 
+         	 if(0 != keycode) {getOnKeyboardActionListener().onKey(keycode, null);}
              return true;
          case (MotionEvent.ACTION_CANCEL) :
              Log.d(DEBUG_TAG,"Action was CANCEL");
