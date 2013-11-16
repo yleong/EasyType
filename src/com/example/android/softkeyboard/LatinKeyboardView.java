@@ -243,9 +243,10 @@ public class LatinKeyboardView extends KeyboardView {
         }      
     }
     
+    //overrides the space key to assign some wrong icon? do not understand why, should explore. commenting out will prevent it, but unable to remove whole method, causes errors...
     void setSubtypeOnSpaceKey(final InputMethodSubtype subtype) {
         final LatinKeyboard keyboard = (LatinKeyboard)getKeyboard();
-        keyboard.setSpaceIcon(getResources().getDrawable(subtype.getIconResId()));
+        //keyboard.setSpaceIcon(getResources().getDrawable(subtype.getIconResId()));
         invalidateAllKeys();
     }
 }
