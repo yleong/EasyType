@@ -42,8 +42,8 @@ public class LatinKeyboardView extends KeyboardView {
 	private static final int[][][] map = {
 		{{'!','?',0,0,0,0,0,'1',0}, {'a','b',0,'c',0,0,0,'2',0}, {'d','e',0,'f',0,0,0,'3',0}, {0,0,0,0,0,0,0,0,0}},
 		{{'g','h',0,'i',0,0,0,'4',0}, {'j','k',0,'l',0,0,0,'5',0}, {'m','n',0,'o',0,0,0,'6',0}, {'.',',',0,0,0,0,0,0,0}},
-		{{'p','q',0,'r',0,'s',0,'7',0}, {'t','u',0,'v',0,0,0,'8',0}, {'w','x',0,'y',0,'z',0,'9',0}, {-5,0,0,0,0,0,0,SoftKeyboard.DELETEWORD,0}},
-		{{0,0,0,0,0,0,0,0,0}, {':',';',0,0,0,0,0,'0',0}, {' ',0,0,0,0,0,0,0,0}, {10,0,0,0,0,0,0,0,0}}
+		{{'p','q',0,'r',0,'s',0,'7',0}, {'t','u',0,'v',0,0,0,'8',0}, {'w','x',0,'y',0,'z',0,'9',0}, {-5,SoftKeyboard.DELETELINE,0,SoftKeyboard.DELETEALL,0,0,0,SoftKeyboard.DELETEWORD,0}},
+		{{0,SoftKeyboard.SELECTLINE,0,SoftKeyboard.SELECTALL,0,0,0,SoftKeyboard.SELECTWORD,0}, {':',';',0,0,0,0,0,'0',0}, {' ',SoftKeyboard.CURSORLINEBACK,0,SoftKeyboard.CURSORWORDFORWARD,0,SoftKeyboard.CURSORLINEFORWARD,0,SoftKeyboard.CURSORWORDBACK,0}, {10,0,0,0,0,0,0,0,0}}
 		
 	};
 	

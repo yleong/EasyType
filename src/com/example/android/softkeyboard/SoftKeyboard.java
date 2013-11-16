@@ -79,9 +79,23 @@ public class SoftKeyboard extends InputMethodService
     
     private String mWordSeparators;
     
-    public static final int MAX_TEXT_SIZE = 99999;
     
     public static final int DELETEWORD = -100;
+    public static final int MAX_TEXT_SIZE = 99999;
+    public static final int DELETEWORD = -201;
+    public static final int DELETELINE = -202;
+    public static final int DELETEALL = -203;
+    
+    public static final int SELECTWORD = -301;
+    public static final int SELECTLINE = -302;
+    public static final int SELECTALL = -303;
+    
+    public static final int CURSORWORDBACK = -401;
+    public static final int CURSORLINEBACK = -402;
+    public static final int CURSORWORDFORWARD = -403;
+    public static final int CURSORLINEFORWARD = -404;
+    
+    
     private static final String DEBUG_TAG = "SoftKB:";
     
     /**
@@ -513,12 +527,15 @@ public class SoftKeyboard extends InputMethodService
             sendKey(primaryCode);
             updateShiftKeyState(getCurrentInputEditorInfo());
         }
-    	  else if(primaryCode == SoftKeyboard.DELETEWORD){        	
-        	handleDeleteWord();
-        }  
     	  else if(primaryCode == SoftKeyboard.DELETEALL){
     		handleDeleteAll();
-    	  }
+          }
+    	  else if(primaryCode == SoftKeyboard.DELETEWORD){
+        	handleDeleteWord();
+        }
+    	  else if(primaryCode == SoftKeyboard.CURSORWORDBACK){
+    		  cursorWordBack();
+    	}
     	  else if (primaryCode == Keyboard.KEYCODE_DELETE) {
             handleBackspace();
         } else if (primaryCode == Keyboard.KEYCODE_SHIFT) {
@@ -613,6 +630,31 @@ public class SoftKeyboard extends InputMethodService
     	int beforeLength = textBefore.length() - breakBefore;
     	int afterLength = breakAfter;
     	ic.deleteSurroundingText(beforeLength, afterLength);
+    }
+    private void cursorWordBack(){
+    	Log.d(DEBUG_TAG, "inside cursor word back");
+    	final int length = mComposing.length();
+    	InputConnection ic = getCurrentInputConnection();
+    	
+    	//send currently composed word, put cursor one word before it
+    	if(length>0){
+    		ic.commitText(mComposing.toString(),0);
+    		updateCandidates();
+    		ic.setSelection(-length, -length);
+    		
+    	}
+    	//words already sent, nothing in candidate
+    	else{
+    		String currText = getEditorText();
+    		String regex = "\\s";
+    		int deleteUntil = getLastWordSeparator(currText);
+    		int numCharsToDelete = currText.length() - deleteUntil;
+    		//I'm so sorry for this terriblly inefficient hack
+    		Log.d(DEBUG_TAG, "deleting " + numCharsToDelete + " characters from the end");
+    		for(int i = 0; i < numCharsToDelete; i++){
+    			keyDownUp(KeyEvent.KEYCODE_DEL);
+    		}
+    	}
     }
     
     private void handleDeleteWord(){
