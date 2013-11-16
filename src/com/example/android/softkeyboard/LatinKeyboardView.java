@@ -29,7 +29,7 @@ public class LatinKeyboardView extends KeyboardView {
 
     static final int KEYCODE_OPTIONS = -100;
 	private static final String DEBUG_TAG = "KBView:";
-	private static final double MIN_SWIPE_LEN = 50.0; //TODO change this!
+	private static final double MIN_SWIPE_LEN = 30.0; //TODO change this!
 	public enum Direction{N, NE, E, SE, S, SW, W, NW}
 	
     public LatinKeyboardView(Context context, AttributeSet attrs) {
@@ -69,9 +69,84 @@ public class LatinKeyboardView extends KeyboardView {
     
     private Direction getDir(MotionEvent me){
     //calculate direction of the swipe	
-    	 //1. calculate angle (w.r.t. North) between 2 points
-    	 //2  depending on the angle, determine what direction
-    	return Direction.N;
+    	//1. calculate angle (w.r.t. North) between 2 points
+    	double angle = getAngle(me); //in radians?
+    	//2  depending on the angle, determine what direction
+    	// divide 360degrees or 2pi up into 8 equal intervals
+    	// each interval has length pi/4
+    	// so [-pi/8, pi/8) is North [pi/8, pi/4) is NE, and so on
+    	double intervalLength = Math.PI / 4.0;
+
+    	// equivalently, if I augment the angle += pi/8
+    	// then i can use intervals [0, pi/4), [pi/4, pi/2) and so on
+    	double augmentedAngle = (angle + Math.PI / 8.0 ) % (2*Math.PI); 
+    	int interval = (int)(augmentedAngle / intervalLength);
+    	Direction direction = Direction.S;
+    	switch (interval){  			
+    		case 0:
+    			direction = Direction.N;
+    			break;
+    		case 1:
+    			direction = Direction.NE;
+    			break;
+    		case 2:
+    			direction = Direction.E;
+    			break;
+    		case 3:
+    			direction = Direction.SE;
+    			break;
+    		case 4:
+    			direction = Direction.S;
+    			break;
+    		case 5:
+    			direction = Direction.SW;
+    			break;
+    		case 6:
+    			direction = Direction.W;
+    			break;
+    		case 7:
+    			direction = Direction.NW;
+    			break;
+    		default:
+    			Log.d(DEBUG_TAG, "unable to getDir()!");
+    	}
+    	Log.d(DEBUG_TAG, "direction is: " + direction);
+    	return direction;
+    }
+    
+    private double getAngle(MotionEvent me){
+    //returns angle wrt North (i.e. if pointing to North, angle = 0 radians)
+    	float currx = me.getX();
+    	float curry = me.getY();
+    	float dx, dy;
+    	dx = (currx - prevX);
+    	dy = (curry - prevY);
+    	double rawangle = Math.atan(Math.abs(dy/dx));
+    	double angle = 0.0;
+    	//Have to remember than (0,0) starts at top left corner
+    	//for graphics coordinates! This is not standard cartesian system
+    	//quadrant 1
+    	if(dy < 0.0 && dx > 0.0){
+    		Log.d(DEBUG_TAG, "quadrant1");
+    		angle = Math.PI/2.0 - rawangle;    		
+    	} 
+    	//quadrant 2
+    	else if (dx > 0.0 && dy > 0.0){
+    		Log.d(DEBUG_TAG, "quadrant2");
+    		angle = Math.PI/2.0 + rawangle;    		
+    	} 
+    	//quadrant 3
+    	else if (dx < 0.0 && dy > 0.0) {
+    		Log.d(DEBUG_TAG, "quadrant3");
+    		angle = Math.PI * 3.0 / 2.0 - rawangle;    		
+    	}
+    	//quadrant 4
+    	else{
+    		Log.d(DEBUG_TAG, "quadrant4");
+    		angle = Math.PI * 3.0/2.0 + rawangle;    		
+    	}
+    	Log.d(DEBUG_TAG, "angle is: " + angle);
+    	return angle;
     }
     @Override
     public boolean onTouchEvent (MotionEvent me) {
@@ -110,7 +185,9 @@ public class LatinKeyboardView extends KeyboardView {
          		 case W:
          			 break;
          		 case NW:
-         			 break;         		 
+         			 break;     
+         		 default:
+         			 break;
          		 }
          	 }
              return true;
