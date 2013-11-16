@@ -21,11 +21,14 @@ import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
 import android.text.InputType;
 import android.text.method.MetaKeyKeyListener;
+import android.util.Log;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.ExtractedText;
+import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
@@ -75,6 +78,11 @@ public class SoftKeyboard extends InputMethodService
     private LatinKeyboard mCurKeyboard;
     
     private String mWordSeparators;
+    
+    public static final int MAX_TEXT_SIZE = 99999;
+    
+    public static final int DELETEWORD = -100;
+    private static final String DEBUG_TAG = "SoftKB:";
     
     /**
      * Main initialization of the input method component.  Be sure to call
@@ -496,14 +504,22 @@ public class SoftKeyboard extends InputMethodService
     // Implementation of KeyboardViewListener
 
     public void onKey(int primaryCode, int[] keyCodes) {
-        if (isWordSeparator(primaryCode)) {
+        
+    	if (isWordSeparator(primaryCode)) {
             // Handle separator
             if (mComposing.length() > 0) {
                 commitTyped(getCurrentInputConnection());
             }
             sendKey(primaryCode);
             updateShiftKeyState(getCurrentInputEditorInfo());
-        } else if (primaryCode == Keyboard.KEYCODE_DELETE) {
+        }
+    	  else if(primaryCode == SoftKeyboard.DELETEWORD){        	
+        	handleDeleteWord();
+        }  
+    	  else if(primaryCode == SoftKeyboard.DELETEALL){
+    		handleDeleteAll();
+    	  }
+    	  else if (primaryCode == Keyboard.KEYCODE_DELETE) {
             handleBackspace();
         } else if (primaryCode == Keyboard.KEYCODE_SHIFT) {
             handleShift();
@@ -568,6 +584,90 @@ public class SoftKeyboard extends InputMethodService
         if (mCandidateView != null) {
             mCandidateView.setSuggestions(suggestions, completions, typedWordValid);
         }
+    }
+    private void handleDeleteALL(){
+    	Log.d(DEBUG_TAG, "inside delete all");
+    	InputConnection ic = getCurrentInputConnection();
+
+    	//for some reason i can't use R.id.selectAll
+    	int selectAllCode =  16908319; //https://developer.android.com/reference/android/R.id.html#selectAll
+    	
+    	ic.performContextMenuAction(selectAllCode);
+    	handleDeleteWord();
+    }
+    private void handleDeleteLine(){
+    	InputConnection ic = getCurrentInputConnection();
+
+    	//if user made a selection, delete that selection? Ans: Yes
+    	if(null != ic.getSelectedText(0)){
+    		mComposing.setLength(0);
+        	getCurrentInputConnection().commitText("",0);
+        	updateCandidates();    
+    	}
+    	
+    	String textBefore = ic.getTextBeforeCursor(MAX_TEXT_SIZE, 0).toString();
+    	String textAfter = ic.getTextAfterCursor(MAX_TEXT_SIZE, 0).toString();
+    	//find \n before, find \n after, then delete?
+    	int breakBefore = textBefore.lastIndexOf('\n');
+    	int breakAfter = textAfter.indexOf('\n'); //NOT last index of!!
+    	int beforeLength = textBefore.length() - breakBefore;
+    	int afterLength = breakAfter;
+    	ic.deleteSurroundingText(beforeLength, afterLength);
+    }
+    
+    private void handleDeleteWord(){
+    	Log.d(DEBUG_TAG, "inside delete word");
+    	final int length = mComposing.length();
+    	InputConnection ic = getCurrentInputConnection();
+        
+    	//delete currently composed word or currently selected word
+    	if(length>0 || null != ic.getSelectedText(0)){
+    		mComposing.setLength(0);
+        	getCurrentInputConnection().commitText("",0);
+        	updateCandidates();    		
+    	}
+    	
+    	//delete word already composed, need to go via InputConnection
+    	//to get at the actual text box.
+    	else{
+    		String currText = ic.getTextBeforeCursor(MAX_TEXT_SIZE, 0).toString();
+    		int deleteUntil = currText.length();
+    		int deleteFrom = getLastWordSeparator(currText);
+    		int deleteLength = deleteUntil - deleteFrom;
+    		ic.deleteSurroundingText(deleteLength,0);    		
+    	}
+    }
+    
+    private int getLastWordSeparator(String currText){
+    	//Given currText
+    	//Find the last word separator in it
+    	//Where a word separator is like a space, comma or period etc
+    	int position = 0;
+    	char[] separator = getWordSeparators().toCharArray();
+    	for(char a : separator){
+    		int currPos = currText.lastIndexOf(a);
+    		if(currPos > position){
+    			position = currPos;
+    		}
+    	}
+    	return position;
+    }
+    
+    //Helper for getEditorText and possibly some others
+    private ExtractedText getExtractedText(){
+    	InputConnection ic = getCurrentInputConnection();
+    	//setup a request 
+    	ExtractedTextRequest request = new ExtractedTextRequest();
+    	int flags = 0;
+    	//request.hintMaxLines = numLines; //android ignores this hint?    	
+    	//forward the request to IC
+    	return ic.getExtractedText(request, flags);    	
+    }
+    
+    //Get the entire text from whatever text box we're currently editing
+    private String getEditorText(){
+    	ExtractedText et = getExtractedText();
+    	return et.text.toString();    	
     }
     
     private void handleBackspace() {
