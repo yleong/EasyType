@@ -21,11 +21,14 @@ import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
 import android.text.InputType;
 import android.text.method.MetaKeyKeyListener;
+import android.util.Log;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.ExtractedText;
+import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
@@ -75,6 +78,22 @@ public class SoftKeyboard extends InputMethodService
     private LatinKeyboard mCurKeyboard;
     
     private String mWordSeparators;
+    
+    public static final int DELETEWORD = -201;
+    public static final int DELETELINE = -202;
+    public static final int DELETEALL = -203;
+    
+    public static final int SELECTWORD = -301;
+    public static final int SELECTLINE = -302;
+    public static final int SELECTALL = -303;
+    
+    public static final int CURSORWORDBACK = -401;
+    public static final int CURSORLINEBACK = -402;
+    public static final int CURSORWORDFORWARD = -403;
+    public static final int CURSORLINEFORWARD = -404;
+    
+    
+    private static final String DEBUG_TAG = "SoftKB:";
     
     /**
      * Main initialization of the input method component.  Be sure to call
@@ -496,14 +515,24 @@ public class SoftKeyboard extends InputMethodService
     // Implementation of KeyboardViewListener
 
     public void onKey(int primaryCode, int[] keyCodes) {
-        if (isWordSeparator(primaryCode)) {
+        
+    	if (isWordSeparator(primaryCode)) {
             // Handle separator
             if (mComposing.length() > 0) {
                 commitTyped(getCurrentInputConnection());
             }
             sendKey(primaryCode);
             updateShiftKeyState(getCurrentInputEditorInfo());
-        } else if (primaryCode == Keyboard.KEYCODE_DELETE) {
+        }
+    	  else if(primaryCode == SoftKeyboard.DELETEWORD){
+        	
+        	handleDeleteWord();
+        }
+    	
+    	  else if(primaryCode == SoftKeyboard.CURSORWORDBACK){
+    		  cursorWordBack();
+    	  }
+    	  else if (primaryCode == Keyboard.KEYCODE_DELETE) {
             handleBackspace();
         } else if (primaryCode == Keyboard.KEYCODE_SHIFT) {
             handleShift();
@@ -568,6 +597,82 @@ public class SoftKeyboard extends InputMethodService
         if (mCandidateView != null) {
             mCandidateView.setSuggestions(suggestions, completions, typedWordValid);
         }
+    }
+    private void cursorWordBack(){
+    	Log.d(DEBUG_TAG, "inside cursor word back");
+    	final int length = mComposing.length();
+    	InputConnection ic = getCurrentInputConnection();
+    	
+    	//send currently composed word, put cursor one word before it
+    	if(length>0){
+    		ic.commitText(mComposing.toString(),0);
+    		updateCandidates();
+    		ic.setSelection(-length, -length);
+    		
+    	}
+    	//words already sent, nothing in candidate
+    	else{
+    		String currText = getEditorText();
+    		String regex = "\\s";
+    		int deleteUntil = getLastWordSeparator(currText);
+    		int numCharsToDelete = currText.length() - deleteUntil;
+    		//I'm so sorry for this terriblly inefficient hack
+    		Log.d(DEBUG_TAG, "deleting " + numCharsToDelete + " characters from the end");
+    		for(int i = 0; i < numCharsToDelete; i++){
+    			keyDownUp(KeyEvent.KEYCODE_DEL);
+    		}
+    	}
+    }
+    
+    private void handleDeleteWord(){
+    	Log.d(DEBUG_TAG, "inside delete word");
+    	final int length = mComposing.length();
+    	
+    	//delete currently composed word
+    	if(length>0){
+    		mComposing.setLength(0);
+        	getCurrentInputConnection().commitText("",0);
+        	updateCandidates();    		
+    	}
+    	//delete word already composed, need to go via InputConnection
+    	//to get at the actual text box.
+    	else{
+    		String currText = getEditorText();
+    		String regex = "\\s";
+    		int deleteUntil = getLastWordSeparator(currText);
+    		int numCharsToDelete = currText.length() - deleteUntil;
+    		//I'm so sorry for this terriblly inefficient hack
+    		Log.d(DEBUG_TAG, "deleting " + numCharsToDelete + " characters from the end");
+    		for(int i = 0; i < numCharsToDelete; i++){
+    			keyDownUp(KeyEvent.KEYCODE_DEL);
+    		}
+    	}
+    }
+    
+    private int getLastWordSeparator(String currText){
+    	//Given currText
+    	//Find the last word separator in it
+    	//Where a word separator is like a space, comma or period etc
+    	String separator = getWordSeparators();
+    	int position = 0;
+    	return position;
+
+    }
+    //Helper for getEditorText and possibly some others
+    private ExtractedText getExtractedText(){
+    	InputConnection ic = getCurrentInputConnection();
+    	//setup a request 
+    	ExtractedTextRequest request = new ExtractedTextRequest();
+    	int flags = 0;
+    	//request.hintMaxLines = numLines; //android ignores this hint?    	
+    	//forward the request to IC
+    	return ic.getExtractedText(request, flags);    	
+    }
+    
+    //Get the text from whatever text box we're currently editing
+    private String getEditorText(){
+    	ExtractedText et = getExtractedText();
+    	return et.text.toString();    	
     }
     
     private void handleBackspace() {
