@@ -80,7 +80,7 @@ public class SoftKeyboard extends InputMethodService
     private String mWordSeparators;
     
     
-    public static final int DELETEWORD = -100;
+    
     public static final int MAX_TEXT_SIZE = 99999;
     public static final int DELETEWORD = -201;
     public static final int DELETELINE = -202;
@@ -602,7 +602,7 @@ public class SoftKeyboard extends InputMethodService
             mCandidateView.setSuggestions(suggestions, completions, typedWordValid);
         }
     }
-    private void handleDeleteALL(){
+    private void handleDeleteAll(){
     	Log.d(DEBUG_TAG, "inside delete all");
     	InputConnection ic = getCurrentInputConnection();
 
